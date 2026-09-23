@@ -1,0 +1,34 @@
+// src/services/firebaseStatus.js
+//
+// Small read-only status helper so UI components can display Firebase's
+// current state without importing Firebase internals or config directly.
+// Keeps components decoupled from src/firebase.js's implementation details
+// (architecture principle #6: database operations separated from UI).
+
+import { app, auth, db, isFirebaseConfigured, missingFirebaseKeys, firestoreInitError } from '../firebase'
+
+export function getFirebaseStatus() {
+  if (!isFirebaseConfigured) {
+    return {
+      configured: false,
+      initialized: false,
+      missingKeys: missingFirebaseKeys,
+      firestorePersistence: 'unavailable',
+      message: 'Firebase is not configured. Add your credentials to a .env file.',
+    }
+  }
+
+  return {
+    configured: true,
+    initialized: Boolean(app && auth && db),
+    missingKeys: [],
+    firestorePersistence: firestoreInitError
+      ? 'fallback-no-persistence'
+      : db
+        ? 'enabled'
+        : 'unavailable',
+    message: firestoreInitError
+      ? 'Firebase initialized, but offline persistence could not start in this browser.'
+      : 'Firebase initialized successfully.',
+  }
+}
