@@ -1,0 +1,97 @@
+// src/firebase.js
+//
+// Central Firebase initialization. This is the ONLY file in the project
+// that should read Firebase config or call initializeApp/getAuth/getFirestore.
+// UI components must import `auth` / `db` from here - never configure
+// Firebase directly inside a component (architecture principle #7).
+//
+// All values come from Vite environment variables (see .env.example).
+// Firebase web config values are not secret in the way an API key for a
+// traditional backend is (they are visible in any deployed frontend bundle),
+// but they still belong in env vars so different environments (dev/staging/
+// prod Firebase projects) can be swapped without touching source code, and
+// so nothing is hardcoded into version control.
+
+import { initializeApp, getApps } from 'firebase/app'
+import { getAuth, browserLocalPersistence, setPersistence } from 'firebase/auth'
+import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from 'firebase/firestore'
+
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+}
+
+// Required keys for the app to function at all. storageBucket and
+// messagingSenderId are not strictly required for Auth + Firestore, so
+// we don't block startup on them, but we do warn if the core three are
+// missing so the UI can show a clear configuration warning instead of
+// throwing a cryptic Firebase error.
+const REQUIRED_KEYS = ['apiKey', 'authDomain', 'projectId']
+
+export const isFirebaseConfigured = REQUIRED_KEYS.every(
+  (key) => typeof firebaseConfig[key] === 'string' && firebaseConfig[key].length > 0
+)
+
+export const missingFirebaseKeys = REQUIRED_KEYS.filter(
+  (key) => !firebaseConfig[key]
+)
+
+let app = null
+let auth = null
+let db = null
+let firestoreInitError = null
+
+if (isFirebaseConfigured) {
+  // Avoid re-initializing if this module is ever evaluated twice (e.g. HMR).
+  app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig)
+
+  auth = getAuth(app)
+  // Keep the user signed in across page reloads and browser restarts,
+  // scoped to this device (architecture principle #5).
+  setPersistence(auth, browserLocalPersistence).catch((error) => {
+    console.error('[firebase] Failed to set auth persistence:', error)
+  })
+
+  try {
+    // Firestore offline persistence: queued writes and cached reads are
+    // stored in IndexedDB and synced automatically when the network
+    // returns. persistentMultipleTabManager lets multiple open tabs share
+    // the same cache instead of fighting over a single-tab lock.
+    //
+    // This does NOT mean data reaches the server while offline - it means
+    // operations are queued locally and sent once connectivity is
+    // restored. There is no way to reach Firestore with zero network.
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager(),
+      }),
+    })
+  } catch (error) {
+    // Offline persistence can fail to initialize in environments that
+    // don't support IndexedDB (some private-browsing modes, very old
+    // browsers, certain server-side/test contexts). We don't want that
+    // to crash the whole app - fall back to an in-memory Firestore
+    // instance so online functionality still works.
+    console.error(
+      '[firebase] Firestore offline persistence unavailable, falling back to default cache:',
+      error
+    )
+    firestoreInitError = error
+    try {
+      db = initializeFirestore(app, {})
+    } catch (fallbackError) {
+      console.error('[firebase] Firestore failed to initialize entirely:', fallbackError)
+      db = null
+    }
+  }
+}
+
+export { app, auth, db, firestoreInitError }
