@@ -1,0 +1,17 @@
+// src/utils/constants.js
+//
+// Shared constants so collection names and role strings aren't hardcoded
+// as magic strings scattered across future service/component files.
+
+export const ROLES = Object.freeze({
+  STUDENT: 'student',
+  PROFESSOR: 'professor',
+})
+
+export const COLLECTIONS = Object.freeze({
+  USERS: 'users',
+  CLASSES: 'classes',
+  CLASS_MEMBERS: 'classMembers',
+  SESSIONS: 'sessions',
+  ATTENDANCE: 'attendance',
+})
