@@ -1,0 +1,63 @@
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import { VitePWA } from 'vite-plugin-pwa'
+
+// https://vitejs.dev/config/
+export default defineConfig({
+  plugins: [
+    react(),
+    VitePWA({
+      // 'autoUpdate' silently updates the service worker/cache when a new
+      // build is deployed, instead of forcing the user to manually refresh.
+      registerType: 'autoUpdate',
+
+      // Ensures the PWA works during local `vite dev`, not just in the
+      // production build. Useful for testing offline behavior early.
+      devOptions: {
+        enabled: true,
+        type: 'module',
+      },
+
+      includeAssets: ['favicon.svg', 'robots.txt', 'apple-touch-icon.png'],
+
+      manifest: {
+        name: 'AttendQR - University Attendance',
+        short_name: 'AttendQR',
+        description: 'Simple QR-based attendance for universities.',
+        theme_color: '#4f46e5',
+        background_color: '#ffffff',
+        display: 'standalone',
+        start_url: '/',
+        scope: '/',
+        icons: [
+          {
+            src: 'pwa-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+          },
+          {
+            src: 'pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+          },
+          {
+            src: 'pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+        ],
+      },
+
+      workbox: {
+        // Pre-cache the built application shell (HTML/CSS/JS) so the app
+        // can be reopened while offline. Firestore/Firebase network calls
+        // are NOT cached here - that is handled separately by Firestore's
+        // own IndexedDB persistence layer, configured in src/firebase.js.
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest}'],
+        navigateFallback: '/index.html',
+        cleanupOutdatedCaches: true,
+      },
+    }),
+  ],
+})
