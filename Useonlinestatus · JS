@@ -1,0 +1,31 @@
+// src/hooks/useOnlineStatus.js
+//
+// Tracks the browser's real connectivity state using navigator.onLine plus
+// the 'online' / 'offline' window events. This reflects whether the device
+// has a network connection at all - it does NOT guarantee Firestore reads
+// or writes will succeed (a captive portal or a flaky connection can report
+// online while requests still fail), but it is the correct, honest signal
+// for "does this device currently have no network."
+
+import { useEffect, useState } from 'react'
+
+export function useOnlineStatus() {
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  )
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
+  return isOnline
+}
