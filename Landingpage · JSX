@@ -1,0 +1,102 @@
+// src/pages/LandingPage.jsx
+//
+// Step 1 scope only: application shell + status indicators.
+// No login, registration, classes, or QR functionality yet - those arrive
+// in later steps per the project roadmap.
+
+import { useEffect, useState } from 'react'
+import StatusBadge from '../components/StatusBadge'
+import { useOnlineStatus } from '../hooks/useOnlineStatus'
+import { getFirebaseStatus } from '../services/firebaseStatus'
+
+export default function LandingPage() {
+  const isOnline = useOnlineStatus()
+  const [firebaseStatus, setFirebaseStatus] = useState(null)
+  const [pwaSupported, setPwaSupported] = useState(false)
+  const [swRegistered, setSwRegistered] = useState(false)
+
+  useEffect(() => {
+    setFirebaseStatus(getFirebaseStatus())
+  }, [])
+
+  useEffect(() => {
+    const supported = 'serviceWorker' in navigator
+    setPwaSupported(supported)
+
+    if (!supported) return
+
+    let cancelled = false
+    navigator.serviceWorker.getRegistration().then((registration) => {
+      if (!cancelled) setSwRegistered(Boolean(registration))
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const firebaseTone = !firebaseStatus
+    ? 'pending'
+    : !firebaseStatus.configured
+      ? 'warning'
+      : firebaseStatus.initialized
+        ? 'good'
+        : 'error'
+
+  return (
+    <div className="page">
+      <header className="hero">
+        <h1 className="hero__title">AttendQR</h1>
+        <p className="hero__subtitle">QR-Based University Attendance</p>
+        <p className="hero__tagline">Modern attendance management for universities.</p>
+      </header>
+
+      {firebaseStatus && !firebaseStatus.configured && (
+        <div className="config-warning" role="alert">
+          <strong>Firebase is not configured.</strong>
+          <p>
+            Missing environment variable{firebaseStatus.missingKeys.length > 1 ? 's' : ''}:{' '}
+            <code>{firebaseStatus.missingKeys.join(', ')}</code>. Copy{' '}
+            <code>.env.example</code> to <code>.env</code> and fill in your Firebase
+            project credentials, then restart the dev server.
+          </p>
+        </div>
+      )}
+
+      <section className="status-panel" aria-label="System status">
+        <StatusBadge
+          label="Firebase"
+          tone={firebaseTone}
+          detail={firebaseStatus?.message ?? 'Checking...'}
+        />
+        <StatusBadge
+          label="Progressive Web App"
+          tone={pwaSupported ? (swRegistered ? 'good' : 'pending') : 'warning'}
+          detail={
+            !pwaSupported
+              ? 'Service workers not supported in this browser.'
+              : swRegistered
+                ? 'Service worker registered - app shell is cached.'
+                : 'Registering (or dev mode - see README).'
+          }
+        />
+        <StatusBadge
+          label={isOnline ? 'Online' : 'Offline'}
+          tone={isOnline ? 'good' : 'warning'}
+          detail={
+            isOnline
+              ? 'Connected to the network.'
+              : 'No network connection - queued actions will sync later.'
+          }
+        />
+      </section>
+
+      <section className="placeholder-note">
+        <p>
+          Step 1 of the AttendQR build: project scaffold, Firebase &amp; PWA foundation.
+          Login, class creation, and QR attendance arrive in the next steps.
+        </p>
+      </section>
+    </div>
+  )
+}
