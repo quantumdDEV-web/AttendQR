@@ -1,0 +1,15 @@
+// src/components/StatusBadge.jsx
+//
+// Presentational component only - no Firebase or business logic here.
+
+export default function StatusBadge({ label, tone, detail }) {
+  return (
+    <div className={`status-badge status-badge--${tone}`}>
+      <span className={`status-dot status-dot--${tone}`} aria-hidden="true" />
+      <div className="status-badge__text">
+        <span className="status-badge__label">{label}</span>
+        {detail && <span className="status-badge__detail">{detail}</span>}
+      </div>
+    </div>
+  )
+}
